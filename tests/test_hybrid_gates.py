@@ -175,6 +175,34 @@ class TestHybridPCircuit(unittest.TestCase):
         self.assertTrue(jnp.array_equal(result["discrete"], jnp.array([1])))
         self.assertTrue(jnp.allclose(result["continuous"], jnp.array([2.0])))
 
+    def test_hybrid_discrete_dims_mismatch_is_order_independent(self):
+        mixture3 = MixtureGaussianGate(
+            sites=([0], [0]),
+            dims=(1,),
+            num_components=3,
+        )
+        mixture2 = MixtureGaussianGate(
+            sites=([0], [0]),
+            dims=(1,),
+            num_components=2,
+        )
+        jump = JumpDiffusionGate(sites=([0], [0]), dims=(1,))
+
+        self.assertEqual(HybridPCircuit([mixture3]).discrete_dims, (3,))
+
+        cases = [
+            [mixture2, mixture3],
+            [mixture3, mixture2],
+            [PNOT(sites=0), mixture3],
+            [mixture3, PNOT(sites=0)],
+            [jump, mixture3],
+            [mixture3, jump],
+        ]
+        for gates in cases:
+            with self.subTest(gates=[type(g).__name__ for g in gates]):
+                with self.assertRaisesRegex(ValueError, "Discrete dimension mismatch"):
+                    HybridPCircuit(gates)
+
 
 class TestHybridCircuitSampling(unittest.TestCase):
     def test_pure_continuous_simulation(self):
